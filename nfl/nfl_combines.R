@@ -17,12 +17,12 @@ get_combine <- function(x) {
 
 # looper
 combines <- list()
-for(i in 1999:2017) {
+for(i in 1987:2017) {
   url <- paste0(base_url_prefix, i, base_url_suffix)
-  df <- get_combine(url)
+  df <- try(get_combine(url))
   df.name <- paste0("combine.", i)
   combines[[df.name]] <- df
 }
 
 # view a combine
-View(combines$combine.2005)
+View(combines$combine.1987)
