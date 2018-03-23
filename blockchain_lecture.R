@@ -43,6 +43,7 @@ ggplot2::ggplot(df.long, aes(blocks, value, color=variable)) +
   theme(legend.justification=c(1,0), legend.position=c(0.85,0.15)) 
 
 
+# scale-free networks
 library(igraph)
 g <- barabasi.game(100)
 V(g)$size <- degree(g, mode="all")*2
@@ -63,3 +64,5 @@ plot_degree_distribution = function(graph) {
   plot(probability ~ degree, log = "xy", xlab = "Degree (log)", ylab = "Probability (log)", 
        col = "orange", pch=19, main = "Degree Distribution")
 }
+g1 <- barabasi.game(10000, power = 1)
+plot_degree_distribution(g1)
