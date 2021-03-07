@@ -11,10 +11,10 @@ library(progress)
 # scrap cran --------------------------------------------------------------
 
 # load the ACTIVE cran packages webpage (does not include archived CRAN packages)
+## I just need this so I know how many packages there are (for the progress bar in the main scraper)
 cran = read_html("https://cran.r-project.org/web/packages/available_packages_by_date.html") 
 
 # convert to a data frame
-## I just need this for the progress bar
 cran_df = cran %>% # list of cran webpage
   html_nodes(., "table") %>% # extract the <table> elements
   .[[1]] %>%  # only need the first list element
@@ -94,11 +94,10 @@ pb = progress_bar$new(total = nrow(cran_df),
                       format = "[:bar] :current/:total (:percent) (:eta)")
 
 # apply the scraper and return a data frame
-## this takes some time to run (~2hrs)
+## this takes some time to run (~2hrs as of 3/7/21)
 tidy_packs_df = cran_df %>% 
   pull(Package) %>% # vector of all the package names
   map_df(is_it_tidy) # do it!
-
 
 
 # plot the total verse ----------------------------------------------------
@@ -127,7 +126,8 @@ p_main = tidy_packs_df %>%
   theme(plot.tag = element_text(family = "Roboto Mono", size = 8, vjust = 2), 
         plot.tag.position = c(0.72, 0)) + 
   scale_y_percent(breaks = c(0, 0.1, 0.2)) + 
-  ggrepel::geom_label_repel(aes(label = scales::percent(label_year)), fill = "#9239F6", color = "white", nudge_y = 50, size = 8) + 
+  geom_label(aes(label = scales::percent(label_year)), fill = "#9239F6", color = "white", size = 7, nudge_y = -0.012) +
+  #ggrepel::geom_label_repel(aes(label = scales::percent(label_year)), fill = "#9239F6", color = "white", nudge_y = 50, size = 8) + 
   scale_x_date(breaks = c(date("2007-06-10"), date("2014-01-07"), date("2016-09-15"), date("2021-02-19")), date_labels = "%Y") + 
   annotate("text", x = date("2007-06-10"), y = 0.03, label = "ggplot2", color = "#617a89", family= "Roboto Mono", size = 5) +
   annotate("text", x = date("2014-01-07"), y = 0.05, label = "dplyr", color = "#617a89", family= "mono", size = 5) +
@@ -147,8 +147,8 @@ p_inset = tidy_packs_df %>%
   ggplot(aes(x = as.factor(year), y = pct_tidy)) + 
   geom_segment(aes(xend=as.factor(year), yend=0), color = "#9239F6", size = 2, alpha = 0.5) + 
   coord_flip() + 
-  ggrepel::geom_label_repel(aes(label = scales::percent(label_year)), 
-                            fill = "#9239F6", color = "white", nudge_y = 5, nudge_x = 10^6) + 
+  geom_label(aes(label = scales::percent(label_year)), fill = "#9239F6", color = "white", nudge_y = -0.01) +
+  #ggrepel::geom_label_repel(aes(label = scales::percent(label_year)), fill = "#9239F6", color = "white", nudge_y = 5, nudge_x = 10^6) + 
   theme_ipsum_rc(grid = "") + 
   theme(axis.text.x = element_blank(), axis.text.y = element_text(size = 8)) + 
   theme(aspect.ratio = 1/5) + 
@@ -194,13 +194,17 @@ tidy_packs_df %>%
 # complexity? 
 tidy_packs_df %>% 
   mutate(year = year(date)) %>%
-  ggplot(aes(x=year, y=n_imports)) + 
-  stat_summary(fun = "mean", geom = "bar", fill = "#9239F6") + 
+  group_by(year) %>% 
+  summarise(avg = mean(n_imports)) %>% 
+  mutate(label_year = ifelse(year == max(year), avg, NA)) %>% 
+  ggplot(aes(x=year, y=avg)) + 
+  geom_col(fill = "#9239F6") + 
   theme_ipsum_rc(grid = "Y") + 
-  scale_x_continuous(breaks= c(2006, 2010, 2015, 2020)) +
+  scale_x_continuous(breaks= c(2006, 2010, 2014, 2018, 2021)) +
   scale_y_comma() + 
   theme_ipsum_rc(grid = "Y", base_size = 18)+
   theme(plot.title = element_text(size=30), plot.subtitle = element_text(size=20)) + 
+  geom_label(aes(label = round(label_year,2)), color = "#9239F6", nudge_y = -0.25, size = 7) +
   labs(x = "", y = "", title = "Complexity of new CRAN packages each year", 
        subtitle = "Average dependencies per new package",
        caption = paste0("CRAN scraped on ", today() %>% format('%b-%d-%y'), "\nDoes not include archived packages"),
@@ -219,13 +223,15 @@ tidy_packs_df %>%
   mutate(year = year(date)) %>%
   filter(year < 2021) %>% 
   count(year) %>% 
+  mutate(label_year = ifelse(year == max(year),  n, NA)) %>% 
   ggplot(aes(x=year, y=n)) + 
   geom_col(fill = "#9239F6") + 
   scale_x_continuous(breaks= c(2006, 2010, 2015, 2020)) +
-  scale_y_comma() + 
+  scale_y_comma(limits = c(0,6500)) + 
   theme_ipsum_rc(grid = "Y", base_size = 18)+
   theme(plot.title = element_text(size=30), plot.subtitle = element_text(size=20)) + 
-  labs(x = "", y = "", title = "New CRAN packages each year",
+  geom_label(aes(label = round(label_year,2)), color = "#9239F6", nudge_y = -0.25, size = 7) +
+  labs(x = "", y = "", title = "New CRAN packages each year", subtitle = "",
        caption = paste0("CRAN scraped on ", today() %>% format('%b-%d-%y'), "\nDoes not include archived packages"),
        tag = "https://cran.r-project.org/web/packages/available_packages_by_date.html") + 
   theme(plot.tag = element_text(family = "Roboto Mono", size = 8, vjust = 2), 
@@ -239,6 +245,46 @@ dplyr = 23161
 ggplot = 40038
 
 (ggplot + dplyr)/r
+
+# never used this
+read_csv("so.csv") %>% 
+  ggplot(aes(x = reorder(package, -tags), y = tags)) + 
+  geom_col(fill = "#9239F6") + 
+  labs(x = "", y = "", title = "Stack Overflow [tags]", subtitle = "tidyverse packages", caption = "Stack Overflow checked on 2/19/21") + 
+  scale_y_continuous(labels = scales::comma) + 
+  annotate(geom = "text", x = 5, y = 32000, label = "ggplot2 + dplyr = 16% of all R questions", color = "#909495", family = "Roboto Mono") + 
+  theme(axis.text.x = element_text(family = "Roboto Mono", size = 10))
+
+
+# count no. of functions in the tidyverse ---------------------------------
+
+# get the attached packages
+attached_packs = devtools::loaded_packages()[1]
+
+# count the number of functions per tidyverse package
+tidy_function_count = attached_packs %>% 
+  mutate(tidy = package %in% tidyverse_packages(include_self = FALSE)) %>% 
+  filter(tidy == TRUE) %>% 
+  mutate(package_package = paste0('package:',package)) %>% 
+  pull(package_package) %>%  
+  map_df(function(x) tibble("pack" = x, 'count' = length(ls.str(x, mode='function')))) %>% 
+  mutate(pack = str_remove(pack, "package:")) 
+
+# plot
+tidy_function_count %>% 
+  ggplot(aes(x=reorder(pack, -count), y=count)) + 
+  geom_col(fill = "#9239F6") + 
+  theme_ipsum_rc(grid = "Y", base_size = 18)+
+  theme(plot.title = element_text(size=30), plot.subtitle = element_text(size=20)) + 
+  geom_label(aes(label = count), color = "#9239F6", nudge_y = -0.25, size = 7) + 
+  labs(x = "", y = "", title = "Number of functions in the (core) tidyverse", subtitle = paste0("Total = ", scales::comma(sum(tidy_function_count$count)))) + 
+  theme(axis.text.x = element_text(family = "Roboto Mono", size = 10), axis.text.y = element_blank()) 
+
+# how many packages in base R?
+sessionInfo()[6] %>% 
+  unlist() %>% 
+  map_dbl(function(x) length(ls.str(paste0('package:',x), mode='function'))) %>% 
+  sum()
 
 # save data ---------------------------------------------------------------
 # uncomment to save
