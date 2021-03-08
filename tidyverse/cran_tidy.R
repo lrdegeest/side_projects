@@ -6,8 +6,6 @@ library(hrbrthemes)
 library(scales)
 library(progress)
 
-# note: all text positioning in images done for 600x500 export (or 630x500)
-
 # scrap cran --------------------------------------------------------------
 
 # load the ACTIVE cran packages webpage (does not include archived CRAN packages)
@@ -193,30 +191,18 @@ tidy_packs_df %>%
 # complexity --------------------------------------------------------------
 # complexity? 
 tidy_packs_df %>% 
-  mutate(year = year(date)) %>%
-  group_by(year) %>% 
-  summarise(avg = mean(n_imports)) %>% 
-  mutate(label_year = ifelse(year == max(year), avg, NA)) %>% 
-  ggplot(aes(x=year, y=avg)) + 
-  geom_col(fill = "#9239F6") + 
+  mutate(year_aps = paste0("'", format(date, "%y"))) %>% 
+  ggplot(aes(x= factor(year_aps), y = n_imports)) + 
+  geom_boxplot(fill = "#9239F6", outlier.color = "#9239F6", outlier.size = 3, outlier.alpha = 0.25) + 
   theme_ipsum_rc(grid = "Y") + 
-  scale_x_continuous(breaks= c(2006, 2010, 2014, 2018, 2021)) +
-  scale_y_comma() + 
   theme_ipsum_rc(grid = "Y", base_size = 18)+
   theme(plot.title = element_text(size=30), plot.subtitle = element_text(size=20)) + 
-  geom_label(aes(label = round(label_year,2)), color = "#9239F6", nudge_y = -0.25, size = 7) +
   labs(x = "", y = "", title = "Complexity of new CRAN packages each year", 
-       subtitle = "Average dependencies per new package",
+       subtitle = "Total dependencies per new package",
        caption = paste0("CRAN scraped on ", today() %>% format('%b-%d-%y'), "\nDoes not include archived packages"),
      tag = "https://cran.r-project.org/web/packages/available_packages_by_date.html") + 
   theme(plot.tag = element_text(family = "Roboto Mono", size = 8, vjust = 2), 
         plot.tag.position = c(0.72, 0)) 
-
-# ton of variance tho
-tidy_packs_df %>% 
-  mutate(year = year(date)) %>% 
-  group_by(year) %>% 
-  summarise(max(n_imports))
 
 # npacks per year
 tidy_packs_df %>% 
@@ -287,5 +273,4 @@ sessionInfo()[6] %>%
   sum()
 
 # save data ---------------------------------------------------------------
-# uncomment to save
-write_csv(tidy_packs_df, "tidy_packs.csv")
+#write_csv(tidy_packs_df, "tidy_packs.csv")
